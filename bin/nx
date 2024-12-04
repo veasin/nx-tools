@@ -1,0 +1,29 @@
+<?php
+function args($args): array{
+	$params = [];
+	$exec = array_shift($args);
+	foreach($args as $arg){
+		if('-' === $arg[0]){
+			if('-' === $arg[1]){
+				[$k, $v] = explode('=', ltrim($arg, "-"), 2);
+				$params[$k] = $v;
+			}
+			else for($i = 1; $i < strlen($arg); $i++){
+				$params[$arg[$i]] = isset($params[$arg[$i]]) ? $params[$arg[$i]] + 1 : 1;
+			}
+		}
+		else $params['-'][] = $arg;
+	}
+	return $params;
+}
+
+$GLOBALS['_script_params'] = $Params = args($argv);
+
+$dir =$Params['dir'] ?? '../..';
+
+$GLOBALS['_project'] = "{$GLOBALS['_composer_bin_dir']}/$dir";
+if(!isset($Params['-'][0])) die('nx app --ns={namespace}');
+$route = __DIR__ . "/scripts/" . strtolower($Params['-'][0]) . ".php";
+if(!is_file($route)) die("Route {$Params['-'][0]} not found");
+include __DIR__ . "/scripts/common.php";
+include $route;

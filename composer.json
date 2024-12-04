@@ -1,0 +1,33 @@
+{
+  "name": "veasin/nx-tools",
+  "description": "NX Scaffolding",
+  "keywords": ["nx", "framework", "scaffolding"],
+  "type": "tools",
+  "homepage": "https://github.com/veasin/nx",
+  "authors": [
+    {
+      "name": "Vea",
+      "homepage": "https://github.com/veasin",
+      "email": "vea@live.cn"
+    }
+  ],
+  "require":{
+    "ext-readline":"*"
+  },
+  "autoload":{
+    "psr-4":{
+      "nx\\tools\\": "tools/",
+      "nx\\annotations\\": "annotations/"
+    }
+  },
+  "bin": ["bin/nx"],
+  "config": {
+    "process-timeout": 0
+  },
+  "scripts": {
+    "dev": "@php -S localhost:8080 web/index.php",
+    "route": "@_routeMake --sort \\your_project\\controllers\\",
+    "_routeMake": "nx\\tools\\routeAnnotation::Make",
+    "_routeHttp": "nx\\tools\\routeHttp::Make"
+  }
+}
