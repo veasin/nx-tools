@@ -196,3 +196,7 @@ function plural($word): string{
 	elseif(str_ends_with($word, 's') || str_ends_with($word, 'x') || str_ends_with($word, 'z') || str_ends_with($word, 'ch') || str_ends_with($word, 'sh')) return $word . 'es';
 	else return $word . 's';
 }
+
+function path($dirname): string{
+	return "{$GLOBALS['_project']}/$dirname";
+}
