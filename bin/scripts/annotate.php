@@ -155,7 +155,7 @@ echo "controller sort: ", $sort ?? 'none', "\n\n";
 echo "find ", count($routes), ' routes', "\n";
 echo "find ", count($https), ' https', "\n";
 
-if(0===count($routes) || 0===count($https)) die('exit.');
+if(0===count($routes) && 0===count($https)) die('exit.');
 
 //if('yes' === choice("are u sure to write file?", ['y' => 'yes', 'n' => 'no', '' => 'yes'])){
 if(count($routes)){
