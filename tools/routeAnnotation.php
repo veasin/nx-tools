@@ -140,62 +140,50 @@ final class routeAnnotation{
 		}
 		return $str;
 	}
+	private function parseMethod(\ReflectionMethod $method){
+		$content = [];
+		$currentLine = 0;
+		if (($handle = fopen($method->getFileName(), 'r'))!== false) {
+			while (($line = fgets($handle))!== false) {
+				$currentLine++;
+				if ($currentLine >= $method->getStartLine() && $currentLine <= $method->getEndLine())  $content[] = $line;
+				if ($currentLine > $method->getEndLine())  break;
+			}
+			fclose($handle);
+		}
+		$tokens =token_get_all("<?PHP\n".implode('', $content));
+	}
 	private function parseAttributes($refs):array{
 		$routes=[];
 		foreach($refs as $classOrMethod=>$attrs){
 			@[$class, $method]=explode("::", $classOrMethod);
-			$_uri='';
-			$_sub_uri='';
-			$_actions=[];
-			foreach($attrs as [$attr, $params]){
-				if(!str_starts_with($attr, "nx\annotations\\router")) continue;
-				$attr=substr($attr, strlen("nx\annotations\\router") + 1);
-				switch($attr){
-					case "REST":
-						@[$_uri, $_sub_uri, $_action]=$params;
-						if(null !== $_action) $_actions=explode(',', $_action);
-						break;
-					case "Actions":
-						$_actions=explode(',', $params[0]);
-						break;
-					case "Method":
-						$Method=array_shift($params);
-						$Uri=array_shift($params);
-						$Params=$this->call($class, $method, $params);
-						$routes[]=[$Method, $Uri, $Params];
-						break;
-					case "Any":
-						$Method="*";
-						$Uri=array_shift($params);
-						$Params=$this->call($class, $method, $params);
-						$routes[]=[$Method, $Uri, $Params];
-						break;
-					case "Get":
-					case "Put":
-					case "Patch":
-					case "Post":
-					case "Delete":
-						$Method=strtolower($attr);
-						if(array_key_exists('Uri', $params) || array_key_exists('Action', $params)){
-							$Uri=$params['Uri'] ?? $params[0];
-							$params=[$params['Action'] ?? $params[1] ?? null];
-						}else{
-							$Uri=array_shift($params);
-							if(count($params) === 0) $params=[[$class, $method]];
-						}
-						$Params=$this->call($class, $method, $params);
-						$routes[]=[$Method, $Uri, $Params];
-						break;
-					default:
-						throw new \Error("Unknown Attribute [$attr]");
-				}
-			}
-			if(count($_actions) && strlen($_uri)){
-				foreach($_actions as $action){
-					$Method=['list'=>'get', 'add'=>'post', 'get'=>'get', 'update'=>'patch', 'delete'=>'delete'][$action];
-					$Uri=['list'=>$_uri, 'add'=>$_uri, 'get'=>$_uri.$_sub_uri, 'update'=>$_uri.$_sub_uri, 'delete'=>$_uri.$_sub_uri][$action];
-					$Params=$this->call($class, $action, [null]);
-					$routes[]=[$Method, $Uri, $Params];
+			foreach($attrs as [$attr, $params, $anno]){
+				if(str_starts_with($attr, "nx\annotations\\router")){
+					$attr = substr($attr, strlen("nx\annotations\\router") + 1);
+					switch($attr){
+						case "REST":
+							$routes =[...$routes, ...$anno->newInstance()->route($class, $method)];
+							break;
+						case "Method":
+						case "Any":
+						case "Get":
+						case "Put":
+						case "Patch":
+						case "Post":
+						case "Delete":
+							$routes[] =$anno->newInstance()->route($class, $method);
+							break;
+						default:
+							throw new \Error("Unknown Attribute [$attr]");
+					}
+				} else if(str_starts_with($attr, "nx\annotations\http")){
+					$attr = substr($attr, strlen("nx\annotations\http") + 1);
+					switch($attr){
+						case 'HTTP':
+							break;
+						default:
+							throw new \Error("Unknown Attribute [$attr]");
+					}
 				}
 			}
 		}
@@ -220,7 +208,7 @@ final class routeAnnotation{
 		$attributes=$r->getAttributes();
 		$result=[];
 		foreach($attributes as $attribute){
-			$result[]=[$attribute->getName(), $attribute->getArguments()];
+			$result[]=[$attribute->getName(), $attribute->getArguments(), $attribute];
 		}
 		return $result;
 	}
