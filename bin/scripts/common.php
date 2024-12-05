@@ -190,13 +190,6 @@ function parseClasses($file): array{
 	return [$namespace, $classes, $traits];
 }
 
-function plural($word): string{
-	if(str_ends_with($word, 'y') && substr($word, -2, 1) !== 'a' && substr($word, -2, 1) !== 'e' && substr($word, -2, 1) !== 'i' && substr($word, -2, 1) !== 'o'
-		&& substr($word, -2, 1) !== 'u') return substr($word, 0, -1) . 'ies';
-	elseif(str_ends_with($word, 's') || str_ends_with($word, 'x') || str_ends_with($word, 'z') || str_ends_with($word, 'ch') || str_ends_with($word, 'sh')) return $word . 'es';
-	else return $word . 's';
-}
-
 function path($dirname): string{
-	return "{$GLOBALS['_project']}/$dirname";
+	return str_replace("/", DIRECTORY_SEPARATOR, "{$GLOBALS['_project']}/$dirname");
 }

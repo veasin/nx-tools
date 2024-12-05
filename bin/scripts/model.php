@@ -53,3 +53,10 @@ class $single extends single {
 	$ok2 =put_php_file("$models$path/$multiple.php", $m);
 	echo "\nwrite $path/$multiple.php ", $ok2 ? "done." : "fail.", "\n";
 }
+
+function plural($word): string{
+	if(str_ends_with($word, 'y') && substr($word, -2, 1) !== 'a' && substr($word, -2, 1) !== 'e' && substr($word, -2, 1) !== 'i' && substr($word, -2, 1) !== 'o'
+		&& substr($word, -2, 1) !== 'u') return substr($word, 0, -1) . 'ies';
+	elseif(str_ends_with($word, 's') || str_ends_with($word, 'x') || str_ends_with($word, 'z') || str_ends_with($word, 'ch') || str_ends_with($word, 'sh')) return $word . 'es';
+	else return $word . 's';
+}

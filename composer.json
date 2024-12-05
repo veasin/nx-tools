@@ -16,7 +16,6 @@
   },
   "autoload":{
     "psr-4":{
-      "nx\\tools\\": "tools/",
       "nx\\annotations\\": "annotations/"
     }
   },
