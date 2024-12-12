@@ -3,6 +3,9 @@
 namespace nx\annotations\http;
 
 use Attribute;
+use nx\annotations\router\Any;
+use nx\annotations\router\Method;
+use nx\annotations\router\REST;
 
 #[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD | \Attribute::IS_REPEATABLE)]
 class Client{
@@ -14,13 +17,23 @@ class Client{
 	protected array $Throw = [];
 	protected array $Return = [];
 	protected string $Note = '';
+	protected string $Name = '';
 	protected string $Group = '';
 	protected array $Response = [];
 	protected array $Test=[];
 	protected string $Auth="";
+	protected array $Var=[];
+	protected static $Vars =[
+		'hostname'=>'localhost',
+		'port'=>'8080',
+		'host'=>'http://{{hostname}}:{{port}}',
+	];
+	protected array $ControllerSet=[];
+	protected ?Any $Route=null;
 	/**
 	 * @param string $Method   请求方法
 	 * @param string $Uri      请求地址
+	 * @param array  $Route
 	 * @param array  $Query    请求 query
 	 * @param array  $Headers  请求header
 	 * @param string $Auth
@@ -28,12 +41,15 @@ class Client{
 	 * @param array  $Throw    抛出异常的状态码
 	 * @param array  $Return   200时返回的结构
 	 * @param string $Note     备注
+	 * @param string $Name     名称
 	 * @param string $Group    默认为 __CLASS__
 	 * @param array  $Response 响应结果的处理 如header中的token等
+	 * @param array  $Var      设置变量
 	 * @param array  $Test
 	 */
-	public function __construct(string $Method,
+	public function __construct(string $Method="GET",
 		string $Uri = '',
+		array $Route=[],
 		array $Query = [],
 		array $Headers = [],
 		string $Auth="",
@@ -41,10 +57,18 @@ class Client{
 		array $Throw = [],
 		array $Return = [],
 		string $Note = '',
+		string $Name = '',
 		string $Group = "",
 		array $Response = [],
+		array $Var =[],
 		array $Test = [],
 	){
+		if(is_array($Route) && count($Route)){
+			if('REST' ===strtoupper($Route[0])){
+				array_shift($Route);
+				$this->Route =new REST(...$Route);
+			} else $this->Route =new Method(...$Route);
+		}
 		$this->Method = $Method;
 		$this->Uri = $Uri;
 		$this->Query = $Query;
@@ -55,15 +79,21 @@ class Client{
 		$this->Note = $Note;
 		$this->Group = $Group;
 		$this->Response = $Response;
+		$this->Var =$Var;
 		$this->Test = $Test;
 		$this->Auth = $Auth;
+		$this->Name = $Name;
+		if(count($this->Var)){
+			foreach($this->Var as $name => $h){
+				self::$Vars[$name] =$h;
+			}
+		}
 	}
-	public function __toString(): string{
-		$_method =strtoupper($this->Method);
-		if(count($this->Query)){
+	protected function _makeQuery($Query): array{
+		if(count($Query)){
 			$_query = [];
 			$_http_query = [];
-			foreach($this->Query as $name => $query){
+			foreach($Query as $name => $query){
 				$_query[] = "# Query $name: ".$this->explainQuery($query);
 				if($query['test']) $_http_query[] = "$name={$query['test']}";
 			}
@@ -73,44 +103,175 @@ class Client{
 			$_query_string ="";
 			$_query_http ="";
 		}
-		if(!empty($this->Auth)){
-			$this->Headers['Authorization'] = $this->Auth;
+		return [$_query_string, $_query_http];
+	}
+	protected function _makeHeaders($Headers, $Auth=""): string{
+		if(!empty($Auth)){
+			$Headers['Authorization'] = $Auth;
 		}
-		if(count($this->Headers)){
+		if(count($Headers)){
 			$_headers= [];
-			foreach($this->Headers as $name => $h){
+			foreach($Headers as $name => $h){
 				$_headers[] = "$name: $h";
 			}
 			$_headers = "\n" . implode("\n", $_headers);
 		} else $_headers ="";
-		if(count($this->Return)){
+		return $_headers;
+	}
+	protected function _makeReturn($Return): string{
+		if(count($Return)){
 			$_return= ['# Return:'];
-			foreach($this->Return as $name => $h){
+			foreach($Return as $name => $h){
 				$_return[] = "#   $name: ".(is_string($h)?$h:($h['type'] ?? "").' '.($h['name'] ?? ''));
 			}
 			$_return = "\n" . implode("\n", $_return);
 		} else $_return ="";
-		if(count($this->Response)){
+		return $_return;
+	}
+	protected function _makeResponse($Response): string{
+		if(count($Response)){
 			$_set =["\n> {%"];
-			foreach($this->Response['body']??[] as $body=>$var){
+			foreach($Response['body']??[] as $body=>$var){
 				$_set[] ="\tclient.global.set('$var', response.body['$body']);";
 			}
-			foreach($this->Response['header']??[] as $body=>$var){
+			foreach($Response['header']??[] as $body=>$var){
 				$_set[] ="\tclient.global.set('$var', response.headers.valueOf('$body'));";
 			}
 			$_set[] ="%}\n";
 			$_set = implode("\n", $_set);
 		} else $_set ="";
+		return $_set;
+	}
+	protected function _makeArgs($Args): array{
+		if(count($Args)){
+			$_r = [];
+			$_query = [];
+			foreach($Args as $from => $arg){
+				$_r[] = "# $from: ";
+				$max =0;
+				foreach($arg as $name => $set){
+					if($max<strlen($name)) $max = strlen($name);
+				}
+				foreach($arg as $name => $set){
+					$_r[] = "#   $name: ".str_repeat(" ", $max -strlen($name)).implode(', ', $set);
+				}
+			}
+			$_string = "\n" . implode("\n", $_r);
+			$_query =count($_query)? "?".implode("&", $_query):"";
+		} else {
+			$_string ="";
+			$_query ="";
+		}
+		return [$_string, $_query];
+	}
+	protected function _makeRequestVar($Vars): string{
+		$n =count($Vars);
+		if($n){
+			$_set =["\n< {%"];
+			foreach($Vars as $name=>$value){
+				$_set[] =(1==$n?' ':"\t")."request.variables.set('$name', '$value')".(1===$n?" ":";");
+			}
+			$_set[] ="%}";
+			$_set = implode(1===$n ?"":"\n", $_set);
+		} else $_set ="";
+		return $_set;
+	}
+	public function __toString(): string{
+		$_method =strtoupper($this->Method);
+		[$_query_string, $_query_http] = $this->_makeQuery($this->Query);
+		$_headers = $this->_makeHeaders($this->Headers, $this->Auth);
+		$_return = $this->_makeReturn($this->Return);
+		$_set = $this->_makeResponse($this->Response);
+		if(!empty(trim($this->Name))){
+			$_name ="\n# @name = $this->Name";
+		} else $_name ="";
 
-		return "### $this->Note
-# Group $this->Group$_query_string$_return
+		if($this->Route){
+			if(!$this->Route->isMultiple()){
+				[$_method, $_uri] = $this->Route->route(null, null);
+				$_method = strtoupper($_method);
+				if('*' ===$_method) return "";
+				$this->Uri = $_uri;
+			} else {//REST
+				//				var_dump($this->ControllerSet);
+				$r =[];
+				foreach($this->Route->actionsMap() as $action => $route){
+					$_method = strtoupper($route[0]);
+					$_uri =preg_replace_callback('#([d|w]?):(\w*)#', fn($matches)=>'{{'.('' !== $matches[2] ?$matches[2] :'').'}}', $route[1]);
+
+					$__list_name ="";
+					$__act_name ="";
+
+					switch($action){
+						case 'list':
+							$_args =[...$this->ControllerSet['list'], ...$this->ControllerSet['options']];
+							$__list_name =" 列表";
+							break;
+						case 'add':
+							$_args =[...$this->ControllerSet['create']];
+							$_return ="";
+							$__list_name =" 创建";
+							//$__act_name ="创建 ";
+							break;
+						case 'get':
+							$_args =[...$this->ControllerSet['single']];
+							$__list_name =" 获取";
+							//$__act_name ="获取 ";
+							break;
+						case 'update':
+							$_args =[...$this->ControllerSet['single'], ...$this->ControllerSet['update']];
+							$_return ="";
+							$__list_name =" 更新";
+							//$__act_name ="更新 ";
+							break;
+						case 'delete':
+							$_args =[...$this->ControllerSet['single']];
+							$_return ="";
+							$__list_name =" 删除";
+							//$__act_name ="删除 ";
+							break;
+						default:
+							$_args =[];
+							$_return ="";
+							break;
+					}
+					[$_argsset, $_updates] =$this->_explainInput($_args);
+					[$_argString] =$this->_makeArgs($_argsset);
+					$_query_http =count($_updates['query']??[]) ?"?".http_build_query($_updates['query']??[]) : "";
+					$__headers =[];
+					if(count($_updates['body']??[])){
+						$__headers['Content-Type'] = 'application/x-www-form-urlencoded';
+						$_body ="\n".http_build_query($_updates['body'])."\n";
+					} else $_body ="";
+					if(count($__headers)) $_headers =$this->_makeHeaders([...$this->Headers, ...$__headers], $this->Auth);
+					if(count($_updates['uri']??[])){
+						$_r_var =$this->_makeRequestVar($_updates['uri']??[]);
+					}else $_r_var ="";
+
+					$r[]= "### $__act_name$this->Note$__list_name$_name\n# Group $this->Group$_argString$_return$_r_var
+$_method {{host}}$_uri$_query_http$_headers
+$_body$_set
+";
+				}
+				return implode("\n", $r);
+			}
+		}
+		if(empty($this->Uri)) return "";
+		return "### $this->Note$_name\n# Group $this->Group$_query_string$_return
 $_method {{host}}$this->Uri$_query_http$_headers
 $_set
 ";
 	}
-	protected function explainQuery($query): string{
+	public static function outVar():string{
+		$_var =[];
+		foreach(self::$Vars as $name => $value){
+			$_var[] = "@$name=$value";
+		}
+		return "\n" . implode("\n", $_var)."\n";
+	}
+	protected function explainQuery($sets): string{
 		$r =[];
-		foreach($query as $key=>$set){
+		foreach($sets as $key=>$set){
 			if(is_numeric($key)) {
 				$key =$set;
 				$set=null;
@@ -126,16 +287,82 @@ $_set
 					//$r[] ="测试数据为 $set";
 					break;
 				default:
-					$r[] =json_encode($query);
+					$r[] =json_encode($sets);
 			}
 		}
 		return implode(", ", $r);
 	}
+	protected function _explainInput($Args): array{
+		$ne =['null'=>'不传', 'empty'=>'为空'];
+		$rr =[];
+		$uu =[];
+		foreach($Args as $name=>$sets){
+			$from ="unknown";
+			$r =[];
+			$u =null;
+			foreach($sets as $key=>$set){
+				if(is_numeric($key)) {
+					$key =$set;
+					$set=null;
+				}
+				$_def =[''=>'空字符串', null=>'NULL'];
+				switch($key){
+					case 'null':
+					case 'empty':
+						$r[] =$ne[$key].(['throw'=>'报错', 'remove'=>'移除'][$set] ?? "为 ".($_def[$set] ?? $set));
+						if('throw'===$set) $u='';
+						else if('remove'!==$set) $u=$set;
+						break;
+					case "digit":
+						$_r=[];
+						foreach($set as $rule => $_set){
+							$_r[] ="$rule$_set";
+						}
+						$r[] ="数字检测 ".implode(",", $_r);
+						break;
+					case "test":
+						$r[] ="测试数据为 $set";
+						$u =$set;
+						break;
+					case "int":
+						//						$r[] ="整型";
+						break;
+					case "str":
+						//						$r[] ="字符串";
+						break;
+					case "error":
+						if(is_string($set)) $r[] ="错误提示: $set";
+						elseif (is_numeric($set)) $r[] ="错误码: $set";
+						break;
+					case "body":
+					case "query":
+					case "uri":
+						$from =$key;
+						break;
+					default:
+						$r[] =json_encode($sets);
+				}
+			}
+			if(!array_key_exists($from, $rr)) $rr[$from]=[];
+			$rr[$from][$name]=$r;
+			if(null !==$u){
+				if(!array_key_exists($from, $uu)) $uu[$from] = [];
+				$uu[$from][$name] = $u;
+			}
+		}
+		return [$rr, $uu];
+	}
 	public function id($class, $method): string{
 		if(empty($this->Group)){
-			$cls = explode("\\", $class);
+			$cls = explode("\\controllers\\", $class);
 			$this->Group = end($cls);
 		}
 		return "$this->Group>$this->Method:$this->Uri";
+	}
+	public function route():?Any{
+		return $this->Route;
+	}
+	public function updateControllerSet($set): void{
+		$this->ControllerSet =$set;
 	}
 }

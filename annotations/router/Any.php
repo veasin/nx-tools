@@ -7,6 +7,7 @@ class Any{
 	protected string $Method ='*';
 	protected string $Uri ="";
 	protected array $Actions =[];
+	protected bool $Multiple = false;
 	/**
 	 * @param string       $Uri        地址
 	 * @param string|array ...$Actions 控制器方法
@@ -19,6 +20,9 @@ class Any{
 	}
 	public function route($class, $method): array{
 		return [$this->Method, $this->Uri, $this->call($class, $method, empty($this->Actions) ?[null] :$this->Actions)];
+	}
+	public function isMultiple(): bool{
+		return $this->Multiple;
 	}
 	protected function call($class, $method, $params=[]):array{
 		$str=[];

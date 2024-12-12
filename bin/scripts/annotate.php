@@ -14,10 +14,6 @@ $composer->addPsr4("$ns\\", $src);
 
 $sort ="\\{$ns}controllers\\";
 
-//$ref =new ReflectionClass("\\$app[0]");
-//var_dump($ref->getTraits());
-
-
 $classes =getClasses(path('src/controllers'));
 $refs=getRefs($classes);
 [$routes, $https]=parseAttributes($refs);
@@ -28,7 +24,7 @@ function parseAttributes($refs):array{
 	$routes=[];
 	foreach($refs as $classOrMethod=>$attrs){
 		@[$class, $method]=explode("::", $classOrMethod);
-		foreach($attrs as [$attr, $params, $anno]){
+		foreach($attrs as [$attr, $params, $anno, $RcOrRM]){
 			if(str_starts_with($attr, "nx\annotations\\router")){
 				$attr = substr($attr, strlen("nx\annotations\\router") + 1);
 				switch($attr){
@@ -53,6 +49,13 @@ function parseAttributes($refs):array{
 					case 'Client':
 						$h =$anno->newInstance();
 						$https[$h->id($class, $method)]=$h;
+						$r =$h->route();
+						if(null !==$r) {
+							if($r->isMultiple()){
+								$h->updateControllerSet(getProperties($RcOrRM));
+								$routes =[...$routes, ...$r->route($class, $method)];
+							} else $routes[] =$r->route($class, $method);
+						}
 						break;
 					default:
 						throw new \Error("Unknown Attribute [$attr]");
@@ -99,7 +102,7 @@ function getAttrs($r):array{
 	$attributes=$r->getAttributes();
 	$result=[];
 	foreach($attributes as $attribute){
-		$result[]=[$attribute->getName(), $attribute->getArguments(), $attribute];
+		$result[]=[$attribute->getName(), $attribute->getArguments(), $attribute, $r];
 	}
 	return $result;
 }
@@ -117,6 +120,20 @@ function getRefs($classes):array{
 		}
 	}
 	return $RefAttrs;
+}
+
+/**
+ * @param \ReflectionClass $RcOrRM
+ * @return array
+ */
+function getProperties($RcOrRM){
+	$Properties =$RcOrRM->getProperties();
+	//	$instance =$RcOrRM->newInstance();
+	$r =[];
+	foreach($Properties as $property){
+		$r[$property->getName()]=$property->getDefaultValue();
+	}
+	return $r;
 }
 function buildParams($params=[]):string{
 	global $sort;
@@ -153,7 +170,7 @@ function export($expression, $return=true):string{
 
 echo "controller sort: ", $sort ?? 'none', "\n\n";
 echo "find ", count($routes), ' routes', "\n";
-echo "find ", count($https), ' https', "\n";
+echo "find ", count($https), ' client-set', "\n";
 
 if(0===count($routes) && 0===count($https)) die('exit.');
 
@@ -178,12 +195,10 @@ if(count($routes)){
 }
 if(count($https)){
 	$http = implode("", $https);
-	$ok =file_put_contents(path("route.http"),
-		"# build by nx-tools
-@host =http://localhost:8080
-
-\n$http"
+	$var =\nx\annotations\http\Client::outVar();
+	$ok =file_put_contents(path("client.http"),
+		"# build by nx-tools\n$var\n\n$http"
 	);
-	echo "\nwrite route.http ", $ok?"done.":"fail.", "\n\n";
+	echo "\nwrite client.http ", $ok?"done.":"fail.", "\n\n";
 }
 //}
