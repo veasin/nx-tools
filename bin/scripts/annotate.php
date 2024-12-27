@@ -41,7 +41,7 @@ function parseAttributes($refs):array{
 						$routes[] =$anno->newInstance()->route($class, $method);
 						break;
 					default:
-						throw new \Error("Unknown Attribute [$attr]");
+						throw new Error("Unknown Attribute [$attr]");
 				}
 			} else if(str_starts_with($attr, "nx\annotations\http")){
 				$attr = substr($attr, strlen("nx\annotations\http") + 1);
@@ -58,7 +58,7 @@ function parseAttributes($refs):array{
 						}
 						break;
 					default:
-						throw new \Error("Unknown Attribute [$attr]");
+						throw new Error("Unknown Attribute [$attr]");
 				}
 			}
 		}
@@ -109,7 +109,7 @@ function getAttrs($r):array{
 function getRefs($classes):array{
 	$RefAttrs=[];
 	foreach($classes as $class){
-		$r=new \ReflectionClass("\\$class");
+		$r=new ReflectionClass("\\$class");
 		$attributes=$r->getAttributes();
 		foreach($attributes as $attribute){
 			$RefAttrs["\\$class"]=getAttrs($r);
@@ -123,10 +123,10 @@ function getRefs($classes):array{
 }
 
 /**
- * @param \ReflectionClass $RcOrRM
+ * @param ReflectionClass $RcOrRM
  * @return array
  */
-function getProperties($RcOrRM){
+function getProperties($RcOrRM): array{
 	$Properties =$RcOrRM->getProperties();
 	//	$instance =$RcOrRM->newInstance();
 	$r =[];

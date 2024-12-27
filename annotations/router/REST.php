@@ -1,6 +1,7 @@
 <?php
 namespace nx\annotations\router;
 use Attribute;
+use Generator;
 
 #[Attribute(Attribute::TARGET_CLASS)]
 class REST extends Any{
@@ -31,7 +32,7 @@ class REST extends Any{
 		}
 		return $routes;
 	}
-	public function actionsMap(): \Generator{
+	public function actionsMap(): Generator{
 		if(count($this->Actions) && strlen($this->Uri)){
 			foreach($this->Actions as $action){
 				$Method=self::$Methods[$action];

@@ -24,9 +24,6 @@
     "process-timeout": 0
   },
   "scripts": {
-    "dev": "@php -S localhost:8080 web/index.php",
-    "route": "@_routeMake --sort \\your_project\\controllers\\",
-    "_routeMake": "nx\\tools\\routeAnnotation::Make",
-    "_routeHttp": "nx\\tools\\routeHttp::Make"
+    "dev": "@php -S localhost:8080 web/index.php"
   }
 }

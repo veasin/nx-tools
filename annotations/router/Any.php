@@ -39,4 +39,7 @@ class Any{
 		}
 		return $str;
 	}
+	public function id():array{
+		return [$this->Method, $this->Uri];
+	}
 }

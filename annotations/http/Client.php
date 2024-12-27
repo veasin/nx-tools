@@ -6,8 +6,9 @@ use Attribute;
 use nx\annotations\router\Any;
 use nx\annotations\router\Method;
 use nx\annotations\router\REST;
+use nx\parts\log;
 
-#[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD | \Attribute::IS_REPEATABLE)]
+#[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD | Attribute::IS_REPEATABLE)]
 class Client{
 	protected string $Method;
 	protected string $Uri = '';
@@ -23,10 +24,11 @@ class Client{
 	protected array $Test=[];
 	protected string $Auth="";
 	protected array $Var=[];
-	protected static $Vars =[
+	protected static array $Vars =[
 		'hostname'=>'localhost',
 		'port'=>'8080',
-		'host'=>'http://{{hostname}}:{{port}}',
+		'protocol'=>'http',
+		'host'=>'{{protocol}}://{{hostname}}:{{port}}',
 	];
 	protected array $ControllerSet=[];
 	protected ?Any $Route=null;
@@ -47,7 +49,7 @@ class Client{
 	 * @param array  $Var      设置变量
 	 * @param array  $Test
 	 */
-	public function __construct(string $Method="GET",
+	public function __construct(string $Method="?",
 		string $Uri = '',
 		array $Route=[],
 		array $Query = [],
@@ -167,12 +169,13 @@ class Client{
 	protected function _makeRequestVar($Vars): string{
 		$n =count($Vars);
 		if($n){
-			$_set =["\n< {%"];
+			$_set =[];
 			foreach($Vars as $name=>$value){
+				if(null===$value || ''===$value) continue;
 				$_set[] =(1==$n?' ':"\t")."request.variables.set('$name', '$value')".(1===$n?" ":";");
 			}
-			$_set[] ="%}";
-			$_set = implode(1===$n ?"":"\n", $_set);
+			if(count($_set)) $_set = "\n< {%\n".implode(1===$n ?"":"\n", $_set)."\n%}";
+			else $_set="";
 		} else $_set ="";
 		return $_set;
 	}
@@ -189,11 +192,12 @@ class Client{
 		if($this->Route){
 			if(!$this->Route->isMultiple()){
 				[$_method, $_uri] = $this->Route->route(null, null);
+				$_uri =preg_replace_callback('#([d|w]?):(\w*)#', fn($matches)=>'{{'.('' !== $matches[2] ?$matches[2] :'').'}}', $_uri);
 				$_method = strtoupper($_method);
 				if('*' ===$_method) return "";
 				$this->Uri = $_uri;
 			} else {//REST
-				//				var_dump($this->ControllerSet);
+				//var_dump($this->ControllerSet);
 				$r =[];
 				foreach($this->Route->actionsMap() as $action => $route){
 					$_method = strtoupper($route[0]);
@@ -242,25 +246,19 @@ class Client{
 					if(count($_updates['body']??[])){
 						$__headers['Content-Type'] = 'application/x-www-form-urlencoded';
 						$_body ="\n".http_build_query($_updates['body'])."\n";
-					} else $_body ="";
+					} else $_body =$_argsset['body']?"\n\n":"";
 					if(count($__headers)) $_headers =$this->_makeHeaders([...$this->Headers, ...$__headers], $this->Auth);
 					if(count($_updates['uri']??[])){
 						$_r_var =$this->_makeRequestVar($_updates['uri']??[]);
 					}else $_r_var ="";
 
-					$r[]= "### $__act_name$this->Note$__list_name$_name\n# Group $this->Group$_argString$_return$_r_var
-$_method {{host}}$_uri$_query_http$_headers
-$_body$_set
-";
+					$r[]= "### $__act_name$this->Note$__list_name$_name\n# Group $this->Group$_argString$_return$_r_var\n$_method {{host}}$_uri$_query_http$_headers\n$_body$_set\n";
 				}
 				return implode("\n", $r);
 			}
 		}
 		if(empty($this->Uri)) return "";
-		return "### $this->Note$_name\n# Group $this->Group$_query_string$_return
-$_method {{host}}$this->Uri$_query_http$_headers
-$_set
-";
+		return "### $this->Note$_name\n# Group $this->Group$_query_string$_return\n$_method {{host}}$this->Uri$_query_http$_headers\n$_set\n";
 	}
 	public static function outVar():string{
 		$_var =[];
@@ -357,7 +355,10 @@ $_set
 			$cls = explode("\\controllers\\", $class);
 			$this->Group = end($cls);
 		}
-		return "$this->Group>$this->Method:$this->Uri";
+		$method =$this->Method;
+		$uri =$this->Uri;
+		if($this->Route) [$method, $uri] = $this->Route->id();
+		return "$this->Group>$method:$uri";
 	}
 	public function route():?Any{
 		return $this->Route;

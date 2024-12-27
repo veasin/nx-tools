@@ -127,8 +127,8 @@ function parseClasses($file): array{
 	$tokens = token_get_all(file_get_contents($file));
 	//var_dump($tokens);
 	//die();
-	$set = [\T_STRING => true, \T_NS_SEPARATOR => true];
-	if(\defined('T_NAME_QUALIFIED')) $set[T_NAME_QUALIFIED] = true;
+	$set = [T_STRING => true, T_NS_SEPARATOR => true];
+	if(defined('T_NAME_QUALIFIED')) $set[T_NAME_QUALIFIED] = true;
 	$classes = [];
 	$traits = [];
 	$trait_full_names = [];
@@ -139,39 +139,39 @@ function parseClasses($file): array{
 		if(!isset($token[1])) continue;
 		$class = '';
 		switch($token[0]){
-			case \T_NAMESPACE:
+			case T_NAMESPACE:
 				$namespace = '';
 				while(isset($tokens[++$i][1])){
 					if(isset($set[$tokens[$i][0]])) $namespace .= $tokens[$i][1];
 				}
 				$namespace .= '\\';
 				break;
-			case \T_CLASS:
-			case \T_INTERFACE:
-			case \T_TRAIT:
+			case T_CLASS:
+			case T_INTERFACE:
+			case T_TRAIT:
 				$isClassConstant = false;
 				for($j = $i - 1; $j > 0; --$j){
 					if(!isset($tokens[$j][1])) break;
-					if(\T_DOUBLE_COLON === $tokens[$j][0]){
+					if(T_DOUBLE_COLON === $tokens[$j][0]){
 						$isClassConstant = true;
 						break;
 					}
-					elseif(!\in_array($tokens[$j][0], [\T_WHITESPACE, \T_DOC_COMMENT, \T_COMMENT])) break;
+					elseif(!in_array($tokens[$j][0], [T_WHITESPACE, T_DOC_COMMENT, T_COMMENT])) break;
 				}
 				if($isClassConstant) break;
 				while(isset($tokens[++$i][1])){
 					$t = $tokens[$i];
-					if(\T_STRING === $t[0]) $class .= $t[1];
-					elseif('' !== $class && \T_WHITESPACE === $t[0]) break;
+					if(T_STRING === $t[0]) $class .= $t[1];
+					elseif('' !== $class && T_WHITESPACE === $t[0]) break;
 				}
 				$classes[] = ltrim($namespace . $class, '\\');
 				break;
-			case \T_USE:
+			case T_USE:
 				while($tokens[++$i] !== ';'){
 					$t = $tokens[$i];
-					if(\T_NAME_FULLY_QUALIFIED === $t[0]) $traits[] = $t[1];
-					if(\T_NAME_QUALIFIED === $t[0]) $trait_full_names[] = $t[1];
-					if(\T_STRING === $t[0]) $trait_names[] = $t[1];
+					if(T_NAME_FULLY_QUALIFIED === $t[0]) $traits[] = $t[1];
+					if(T_NAME_QUALIFIED === $t[0]) $trait_full_names[] = $t[1];
+					if(T_STRING === $t[0]) $trait_names[] = $t[1];
 				}
 				//$classes[]=ltrim($namespace.$class, '\\');
 				break;
