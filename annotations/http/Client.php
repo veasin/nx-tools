@@ -246,7 +246,7 @@ class Client{
 					if(count($_updates['body']??[])){
 						$__headers['Content-Type'] = 'application/x-www-form-urlencoded';
 						$_body ="\n".http_build_query($_updates['body'])."\n";
-					} else $_body =$_argsset['body']?"\n\n":"";
+					} else $_body =($_argsset['body'] ?? null)?"\n\n":"";
 					if(count($__headers)) $_headers =$this->_makeHeaders([...$this->Headers, ...$__headers], $this->Auth);
 					if(count($_updates['uri']??[])){
 						$_r_var =$this->_makeRequestVar($_updates['uri']??[]);
