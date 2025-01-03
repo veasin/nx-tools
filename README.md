@@ -37,7 +37,7 @@ composer.json
 ```json
 {
   "require-dev": {
-    "veasin/nx-tools":"^0.0.4"
+    "veasin/nx-tools":">=0.0.9"
   },
   "config": {
     "process-timeout": 0

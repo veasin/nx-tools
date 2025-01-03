@@ -20,7 +20,7 @@ $options['use'] = choice("select the trait you want to use? multiple.", [
 	"control-ca",
 	"control-main",
 	"router-uri",
-	'router-annotation',
+	//'router-annotation',
 	"db-pdo",
 	"filter-from",
 	"output-http",
@@ -35,17 +35,17 @@ $options['use'] = choice("select the trait you want to use? multiple.", [
 ], ["log-ws", "runtime", "control-ca", "router-uri", "db-pdo", "filter-from", "output-rest", "controller-model"]);
 
 $requires =[
-	'log-ws'=>"veasin/nx-log-ws:^0.0.2",
-	'log-file'=>"veasin/nx-log:^0.0.4",
-	'log-cli'=>"veasin/nx-log-cli:^0.0.3",
-	'router-annotation'=>"veasin/nx-router-annotation:^0.0.5",
-	'db-pdo'=>"veasin/nx-db-pdo:^0.0.7",
-	'filter-from'=>"veasin/nx-filter-from:^0.0.2",
-	'cache-redis'=>"veasin/nx-cache-redis:^0.0.9",
-	'cache-hash'=>"veasin/nx-cache-redis:^0.0.9",
-	'model'=>"veasin/nx-model:^0.0.8",
-	'controller-model'=>"veasin/nx-controller-model:^0.0.5",
-	'network-context'=>"veasin/nx-network-context:^0.0.6",
+	'log-ws'=>"veasin/nx-log-ws:>=0.0.2",
+	'log-file'=>"veasin/nx-log:>=0.0.4",
+	'log-cli'=>"veasin/nx-log-cli:>=0.0.3",
+	//'router-annotation'=>"veasin/nx-router-annotation:>=0.0.5",
+	'db-pdo'=>"veasin/nx-db-pdo:>=0.0.9",
+	'filter-from'=>"veasin/nx-filter-from:>=0.0.5",
+	'cache-redis'=>"veasin/nx-cache-redis:>=0.0.10",
+	'cache-hash'=>"veasin/nx-cache-redis:>=0.0.9",
+	'model'=>"veasin/nx-model:>=0.0.10",
+	'controller-model'=>"veasin/nx-controller-model:>=0.0.7",
+	'network-context'=>"veasin/nx-network-context:>=0.0.6",
 ];
 $uses =[
 	"log-ws",
@@ -86,7 +86,7 @@ if('yes' === choice("are u sure to make app.php?", ['y' => 'yes', 'n' => 'no', '
 	$ok =put_php_file("$src/app.php", "namespace {$options['namespace']};\nclass app extends \\nx\\app{\n$use$path\n}");
 	echo "\nwrite src/app.php ", $ok?"done.":"fail.", "\n";
 
-	$require =["veasin/nx"=>"^1.3.1"];
+	$require =["veasin/nx"=>">=1.3.1"];
 	foreach($options['use'] as $use){
 		if(isset($requires[$use])) {
 			[$package, $version] = explode(':', $requires[$use]);
@@ -101,7 +101,7 @@ if('yes' === choice("are u sure to make app.php?", ['y' => 'yes', 'n' => 'no', '
 		'type'=>'project',
 		'require' => $require,
 		'require-dev'=>[
-			'veasin/nx-tools'=>'^0.0.1',
+			'veasin/nx-tools'=>'>=0.0.9',
 		],
 		'autoload' => [
 			'psr-4' => [
@@ -113,9 +113,7 @@ if('yes' === choice("are u sure to make app.php?", ['y' => 'yes', 'n' => 'no', '
 		],
 		'scripts' => [
 			'dev'=>"@php -S localhost:8080 web/index.php",
-			//"route"=>"nx route --sort=\\{$options['namespace']}\controllers\\",
-			"route"=>"@_routeMake --sort=\\{$options['namespace']}\controllers\\",
-			"_routeMake"=>"nx\\tools\\routeAnnotation::Make",
+			'annotate'=> 'nx annotate',
 		]
 	]);
 

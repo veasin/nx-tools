@@ -29,7 +29,7 @@ if('yes' === choice("are u sure to make models?", ['y' => 'yes', 'n' => 'no', ''
 	$m = "namespace {$ns}models$ns_path;\n
 use nx\helpers\model\multiple;
 class $multiple extends multiple {
-	protected string \$table = '$name';//db table name
+	const TABLE_NAME = 'category';//db table name
 	const TOMBSTONE =true;//db delete mode
 	public function findByID(\$id):?$single{
 		\$data = \$this->_find(['id'=>\$id]);
@@ -43,7 +43,6 @@ class $multiple extends multiple {
 	$s = "namespace {$ns}models$ns_path;\n
 use nx\helpers\model\single;
 class $single extends single {
-	protected string \$table = '$name';//db table name
 	protected const MULTIPLE =$multiple::class;
 }
 ";
