@@ -101,7 +101,7 @@ if('yes' === choice("are u sure to make app.php?", ['y' => 'yes', 'n' => 'no', '
 		'type'=>'project',
 		'require' => $require,
 		'require-dev'=>[
-			'veasin/nx-tools'=>'>=0.0.9',
+			'veasin/nx-tools'=>'>=0.0.11',
 		],
 		'autoload' => [
 			'psr-4' => [

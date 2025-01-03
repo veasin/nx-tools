@@ -32,6 +32,7 @@ class Client{
 	];
 	protected array $ControllerSet=[];
 	protected ?Any $Route=null;
+	protected array $ClassMethod=[];
 	/**
 	 * @param string $Method   请求方法
 	 * @param string $Uri      请求地址
@@ -188,77 +189,49 @@ class Client{
 		if(!empty(trim($this->Name))){
 			$_name ="\n# @name = $this->Name";
 		} else $_name ="";
-
+		$_body="\n";
+		$_argString=$_r_var="";
+		$_uri =$this->Uri;
 		if($this->Route){
 			if(!$this->Route->isMultiple()){
-				[$_method, $_uri] = $this->Route->route(null, null);
+				$action = $this->ClassMethod[1] ?? null;
+				[$_method, $_uri] = $this->Route->route($this->ClassMethod[0]??null, $this->ClassMethod[1] ?? null);
 				$_uri =preg_replace_callback('#([d|w]?):(\w*)#', fn($matches)=>'{{'.('' !== $matches[2] ?$matches[2] :'').'}}', $_uri);
 				$_method = strtoupper($_method);
 				if('*' ===$_method) return "";
-				$this->Uri = $_uri;
+				foreach($this->Route->actionsMap() as $action){
+					if(in_array($action, ['list', 'add', 'get', 'update', 'delete'])){
+						[$__list_name,
+							$__act_name,
+							$_return,
+							$_argString,
+							$_query_http,
+							$_body,
+							$_headers,
+							$_r_var] = $this->getModelMethod($action, $_return, $_headers);
+					}
+				}
 			} else {//REST
 				//var_dump($this->ControllerSet);
 				$r =[];
 				foreach($this->Route->actionsMap() as $action => $route){
 					$_method = strtoupper($route[0]);
 					$_uri =preg_replace_callback('#([d|w]?):(\w*)#', fn($matches)=>'{{'.('' !== $matches[2] ?$matches[2] :'').'}}', $route[1]);
-
-					$__list_name ="";
-					$__act_name ="";
-
-					switch($action){
-						case 'list':
-							$_args =[...$this->ControllerSet['list'], ...$this->ControllerSet['options']];
-							$__list_name =" 列表";
-							break;
-						case 'add':
-							$_args =[...$this->ControllerSet['create']];
-							$_return ="";
-							$__list_name =" 创建";
-							//$__act_name ="创建 ";
-							break;
-						case 'get':
-							$_args =[...$this->ControllerSet['single']];
-							$__list_name =" 获取";
-							//$__act_name ="获取 ";
-							break;
-						case 'update':
-							$_args =[...$this->ControllerSet['single'], ...$this->ControllerSet['update']];
-							$_return ="";
-							$__list_name =" 更新";
-							//$__act_name ="更新 ";
-							break;
-						case 'delete':
-							$_args =[...$this->ControllerSet['single']];
-							$_return ="";
-							$__list_name =" 删除";
-							//$__act_name ="删除 ";
-							break;
-						default:
-							$_args =[];
-							$_return ="";
-							break;
-					}
-					[$_argsset, $_updates] =$this->_explainInput($_args);
-					[$_argString] =$this->_makeArgs($_argsset);
-					$_query_http =count($_updates['query']??[]) ?"?".http_build_query($_updates['query']??[]) : "";
-					$__headers =[];
-					if(count($_updates['body']??[])){
-						$__headers['Content-Type'] = 'application/x-www-form-urlencoded';
-						$_body ="\n".http_build_query($_updates['body'])."\n";
-					} else $_body =($_argsset['body'] ?? null)?"\n\n":"";
-					if(count($__headers)) $_headers =$this->_makeHeaders([...$this->Headers, ...$__headers], $this->Auth);
-					if(count($_updates['uri']??[])){
-						$_r_var =$this->_makeRequestVar($_updates['uri']??[]);
-					}else $_r_var ="";
-
+					[$__list_name,
+						$__act_name,
+						$_return,
+						$_argString,
+						$_query_http,
+						$_body,
+						$_headers,
+						$_r_var] = $this->getModelMethod($action, $_return, $_headers);
 					$r[]= "### $__act_name$this->Note$__list_name$_name\n# Group $this->Group$_argString$_return$_r_var\n$_method {{host}}$_uri$_query_http$_headers\n$_body$_set\n";
 				}
 				return implode("\n", $r);
 			}
 		}
-		if(empty($this->Uri)) return "";
-		return "### $this->Note$_name\n# Group $this->Group$_query_string$_return\n$_method {{host}}$this->Uri$_query_http$_headers\n$_set\n";
+		if(empty($_uri)) return "";
+		return "### $this->Note$_name\n# Group $this->Group$_query_string$_argString$_return$_r_var\n$_method {{host}}$_uri$_query_http$_headers\n$_body$_set\n";
 	}
 	public static function outVar():string{
 		$_var =[];
@@ -351,6 +324,7 @@ class Client{
 		return [$rr, $uu];
 	}
 	public function id($class, $method): string{
+		$this->ClassMethod=[$class, $method];
 		if(empty($this->Group)){
 			$cls = explode("\\controllers\\", $class);
 			$this->Group = end($cls);
@@ -365,5 +339,62 @@ class Client{
 	}
 	public function updateControllerSet($set): void{
 		$this->ControllerSet =$set;
+	}/**
+ * @param mixed $action
+ * @param string $_return
+ * @param string $_headers
+ * @return array
+ */
+	public function getModelMethod(mixed $action, string $_return, string $_headers): array{
+		$__list_name = "";
+		$__act_name = "";
+		switch($action){
+			case 'list':
+				$_args = [...$this->ControllerSet['list'], ...$this->ControllerSet['options']];
+				$__list_name = " 列表";
+				break;
+			case 'add':
+				$_args = [...$this->ControllerSet['create']];
+				$_return = "";
+				$__list_name = " 创建";
+				//$__act_name ="创建 ";
+				break;
+			case 'get':
+				$_args = [...$this->ControllerSet['single']];
+				$__list_name = " 获取";
+				//$__act_name ="获取 ";
+				break;
+			case 'update':
+				$_args = [...$this->ControllerSet['single'], ...$this->ControllerSet['update']];
+				$_return = "";
+				$__list_name = " 更新";
+				//$__act_name ="更新 ";
+				break;
+			case 'delete':
+				$_args = [...$this->ControllerSet['single']];
+				$_return = "";
+				$__list_name = " 删除";
+				//$__act_name ="删除 ";
+				break;
+			default:
+				$_args = [];
+				$_return = "";
+				break;
+		}
+		[$_argsset, $_updates] = $this->_explainInput($_args);
+		[$_argString] = $this->_makeArgs($_argsset);
+		$_query_http = count($_updates['query'] ?? []) ? "?" . http_build_query($_updates['query'] ?? []) : "";
+		$__headers = [];
+		if(count($_updates['body'] ?? [])){
+			$__headers['Content-Type'] = 'application/x-www-form-urlencoded';
+			$_body = "\n" . http_build_query($_updates['body']) . "\n";
+		}
+		else $_body = ($_argsset['body'] ?? null) ? "\n\n" : "";
+		if(count($__headers)) $_headers = $this->_makeHeaders([...$this->Headers, ...$__headers], $this->Auth);
+		if(count($_updates['uri'] ?? [])){
+			$_r_var = $this->_makeRequestVar($_updates['uri'] ?? []);
+		}
+		else $_r_var = "";
+		return [$__list_name, $__act_name, $_return, $_argString, $_query_http, $_body, $_headers, $_r_var];
 	}
 }

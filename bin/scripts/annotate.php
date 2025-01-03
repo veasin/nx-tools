@@ -51,8 +51,8 @@ function parseAttributes($refs):array{
 						$https[$h->id($class, $method)]=$h;
 						$r =$h->route();
 						if(null !==$r) {
+							$h->updateControllerSet(getProperties($RcOrRM));
 							if($r->isMultiple()){
-								$h->updateControllerSet(getProperties($RcOrRM));
 								$routes =[...$routes, ...$r->route($class, $method)];
 							} else $routes[] =$r->route($class, $method);
 						}
@@ -127,6 +127,7 @@ function getRefs($classes):array{
  * @return array
  */
 function getProperties($RcOrRM): array{
+	if($RcOrRM instanceof \ReflectionMethod) $RcOrRM=$RcOrRM->getDeclaringClass();
 	$Properties =$RcOrRM->getProperties();
 	//	$instance =$RcOrRM->newInstance();
 	$r =[];

@@ -42,4 +42,11 @@ class Any{
 	public function id():array{
 		return [$this->Method, $this->Uri];
 	}
+	public function actionsMap(): \Generator{
+		if(count($this->Actions) && strlen($this->Uri)){
+			foreach($this->Actions as $action){
+				yield $action;
+			}
+		}
+	}
 }
