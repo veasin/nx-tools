@@ -114,6 +114,7 @@ if('yes' === choice("are u sure to make app.php?", ['y' => 'yes', 'n' => 'no', '
 		'scripts' => [
 			'dev'=>"@php -S localhost:8080 web/index.php",
 			'annotate'=> 'nx annotate',
+			'uml'=> 'nx uml',
 		]
 	]);
 
